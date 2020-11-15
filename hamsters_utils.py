@@ -38,6 +38,7 @@ class PostProcessor():
         self.makeColors()
         self.iitpID = 0
         self.iitpJson = {'annotations':[]}
+        self.box_real_class = [1,3,0,6,6,5,5,1,2,4]
 
     def makeColors(self):
         if len(self.colors) >= self.num_classes:
@@ -72,14 +73,13 @@ class PostProcessor():
 
         anno['object'] = []
         for box, label in zip(bboxes, labels):
+            label = self.box_real_class[label]
             anno['object'].append(
                 {
                 'box': box,
                 'label': 'c'+str(label)
                 }
                 )
-
-        print('anno : ', anno)
 
         self.iitpJson['annotations'].append(anno)
 
@@ -156,33 +156,11 @@ class PostProcessor():
                     result,
                     show=False,
                     out_file=None):
-        """Draw `result` over `img`.
-        Args:
-            img (str or Tensor): The image to be displayed.
-            result (Tensor or tuple): The results to draw over `img`
-                bbox_result or (bbox_result, segm_result).
-            score_thr (float, optional): Minimum score of bboxes to be shown.
-                Default: 0.3.
-            bbox_color (str or tuple or :obj:`Color`): Color of bbox lines.
-            text_color (str or tuple or :obj:`Color`): Color of texts.
-            thickness (int): Thickness of lines.
-            font_scale (float): Font scales of texts.
-            win_name (str): The window name.
-            wait_time (int): Value of waitKey param.
-                Default: 0.
-            show (bool): Whether to show the image.
-                Default: False.
-            out_file (str or None): The filename to write the image.
-                Default: None.
-        Returns:
-            img (Tensor): Only if not `show` or `out_file`
-        """
+
         img = mmcv.imread(img)
         img = img.copy()
         if isinstance(result, tuple):
             bbox_result, segm_result = result
-            # print('bbox_result, segm_result : ', len(bbox_result), len(segm_result))
-
             if isinstance(segm_result, tuple):
                 segm_result = segm_result[0]  # ms rcnn
                 # print('check msrcnn : ', len(segm_result))
@@ -225,25 +203,7 @@ class PostProcessor():
                         labels,
                         show=True,
                         out_file=None):
-        """Draw bboxes and class labels (with scores) on an image.
-        Args:
-            img (str or ndarray): The image to be displayed.
-            bboxes (ndarray): Bounding boxes (with scores), shaped (n, 4) or
-                (n, 5).
-            labels (ndarray): Labels of bboxes.
-            class_names (list[str]): Names of each classes.
-            score_thr (float): Minimum score of bboxes to be shown.
-            bbox_color (str or tuple or :obj:`Color`): Color of bbox lines.
-            text_color (str or tuple or :obj:`Color`): Color of texts.
-            thickness (int): Thickness of lines.
-            font_scale (float): Font scales of texts.
-            show (bool): Whether to show the image.
-            win_name (str): The window name.
-            wait_time (int): Value of waitKey param.
-            out_file (str or None): The filename to write the image.
-        Returns:
-            ndarray: The image with bboxes drawn on it.
-        """
+
         assert bboxes.ndim == 2
         assert labels.ndim == 1
         assert bboxes.shape[0] == labels.shape[0]
