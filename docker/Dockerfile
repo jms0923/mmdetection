@@ -25,5 +25,5 @@ RUN pip install pillow
 RUN pip install opencv-python
 RUN pip install --no-cache-dir -e .
 
-ADD /home/ubuntu/minseok/mmdetection/work_dirs/stuff/padding/semantic/epoch_17.pth /aichallenge/
-ADD /home/ubuntu/minseok/mmdetection/work_dirs/stuff/padding/semantic/detectors_htc_r50_1x_coco.py /aichallenge/
+COPY epoch.pth /aichallenge/epoch.pth
+COPY detectors_htc_r50_1x_coco.py /aichallenge/

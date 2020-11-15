@@ -26,7 +26,7 @@ def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor
         result = inference_detector(detectorsModel, imgPath)
         # use just detectors
         if not elcModel:
-            detectorsPostProcessor.saveResult(imgPath, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
+            # detectorsPostProcessor.saveResult(imgPath, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
             detectorsPostProcessor.saveIitp(imgPath, result)
 
         # if use ELC module
@@ -52,23 +52,6 @@ def main():
     parser.add_argument('img_dir', help='Image files path') # , default='/home/ubuntu/minseok/dataset/AI_Challenge/workFestival_padding_2/val2017/'
     args = parser.parse_args()
 
-    # parser.add_argument('--save_dir', help='path to save result file',
-    #                     default='/home/ubuntu/minseok/mmdetection/results/dokyo_1')
-    # parser.add_argument('--detectors_config', help='Config file', 
-    #                     default="/home/ubuntu/minseok/mmdetection/work_dirs/stuff/padding/semantic/detectors_htc_r50_1x_coco.py")
-    # parser.add_argument('--detectors_checkpoint', help='Checkpoint file',
-    #                     default="/home/ubuntu/minseok/mmdetection/work_dirs/stuff/padding/semantic/epoch_17.pth")
-    # parser.add_argument('--score-thr', type=float, help='bbox score threshold', 
-    #                     default=0.3)
-    # # ELC options
-    # parser.add_argument('--elc_checkpoint', help='post network checkpoint', 
-    #                     )   # default="/home/ubuntu/namwon/new_test/superW-net1E/save_c27_1018/204_model_best.pth.tar"
-    # parser.add_argument('--use_att', default=True, action='store_true', help='use attention module')
-    # parser.add_argument('--nclass', default=27, type=int, help='number of class')
-    # parser.add_argument('--csvPath', default='/home/ubuntu/minseok/mmdetection/results/detectors_padding_2/t3_res_0026.csv', type=str, help='path to save csv result')
-    # # Device options
-    # parser.add_argument('--device', help='Device used for inference', default='cuda:2')
-    
 
     SAVE_DIR = '/home/ubuntu/minseok/mmdetection/results/dokyo_1'
 
@@ -83,7 +66,6 @@ def main():
     ELC_ARGS = [ELC_CHECKPOINT, USE_ATT, NCLASS]
 
     DEVICE='cuda:0'
-    
     
 
     # load image list
