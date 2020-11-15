@@ -21,18 +21,18 @@ def savePathFromImgPath(save_dir, imgPath):
     return path.join(save_dir, imgPath.split('/')[-1])
 
 
-def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, args):
+def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR):
     for imgPath in imgList:
         result = inference_detector(detectorsModel, imgPath)
         # use just detectors
         if not elcModel:
-            detectorsPostProcessor.saveResult(imgPath, result, show=False, out_file=savePathFromImgPath(args.save_dir, imgPath))
+            detectorsPostProcessor.saveResult(imgPath, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
             detectorsPostProcessor.saveIitp(imgPath, result)
 
         # if use ELC module
         else:
-            detectorsPostProcessor.saveResult(imgPath, result, show=False, out_file=savePathFromImgPath(args.save_dir, imgPath))
-            croppedImgs = detectorsPostProcessor.cropBoxes(imgPath, result, out_file=savePathFromImgPath(args.save_dir, imgPath))
+            detectorsPostProcessor.saveResult(imgPath, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
+            croppedImgs = detectorsPostProcessor.cropBoxes(imgPath, result, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
             if len(croppedImgs) > 0:
                 for idx, img in enumerate(croppedImgs):
                     pred_class, confidence = elc.inference(elcModel, elcConfigs, Image.fromarray(img))
@@ -49,44 +49,60 @@ def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor
 def main():
     # DetectoRS options
     parser = ArgumentParser()
-    parser.add_argument('--img_dir', help='Image files path',
-                        default='/home/ubuntu/minseok/dataset/AI_Challenge/workFestival_padding_2/val2017/') # /home/ubuntu/minseok/dataset/AI_Challenge/workFestival_padding_2/train2017/
-    parser.add_argument('--save_dir', help='path to save result file',
-                        default='/home/ubuntu/minseok/mmdetection/results/dokyo_1')
-    parser.add_argument('--detectors_config', help='Config file', 
-                        default="/home/ubuntu/minseok/mmdetection/work_dirs/stuff/padding/semantic/detectors_htc_r50_1x_coco.py")
-    parser.add_argument('--detectors_checkpoint', help='Checkpoint file',
-                        default="/home/ubuntu/minseok/mmdetection/work_dirs/stuff/padding/semantic/epoch_17.pth")
-    parser.add_argument('--score-thr', type=float, help='bbox score threshold', 
-                        default=0.3)
-    # ELC options
-    parser.add_argument('--elc_checkpoint', help='post network checkpoint', 
-                        )   # default="/home/ubuntu/namwon/new_test/superW-net1E/save_c27_1018/204_model_best.pth.tar"
-    parser.add_argument('--use_att', default=True, action='store_true', help='use attention module')
-    parser.add_argument('--nclass', default=27, type=int, help='number of class')
-    parser.add_argument('--csvPath', default='/home/ubuntu/minseok/mmdetection/results/detectors_padding_2/t3_res_0026.csv', type=str, help='path to save csv result')
-    # Device options
-    parser.add_argument('--device', help='Device used for inference', 
-                        default='cuda:2')
+    parser.add_argument('img_dir', help='Image files path') # , default='/home/ubuntu/minseok/dataset/AI_Challenge/workFestival_padding_2/val2017/'
     args = parser.parse_args()
+
+    # parser.add_argument('--save_dir', help='path to save result file',
+    #                     default='/home/ubuntu/minseok/mmdetection/results/dokyo_1')
+    # parser.add_argument('--detectors_config', help='Config file', 
+    #                     default="/home/ubuntu/minseok/mmdetection/work_dirs/stuff/padding/semantic/detectors_htc_r50_1x_coco.py")
+    # parser.add_argument('--detectors_checkpoint', help='Checkpoint file',
+    #                     default="/home/ubuntu/minseok/mmdetection/work_dirs/stuff/padding/semantic/epoch_17.pth")
+    # parser.add_argument('--score-thr', type=float, help='bbox score threshold', 
+    #                     default=0.3)
+    # # ELC options
+    # parser.add_argument('--elc_checkpoint', help='post network checkpoint', 
+    #                     )   # default="/home/ubuntu/namwon/new_test/superW-net1E/save_c27_1018/204_model_best.pth.tar"
+    # parser.add_argument('--use_att', default=True, action='store_true', help='use attention module')
+    # parser.add_argument('--nclass', default=27, type=int, help='number of class')
+    # parser.add_argument('--csvPath', default='/home/ubuntu/minseok/mmdetection/results/detectors_padding_2/t3_res_0026.csv', type=str, help='path to save csv result')
+    # # Device options
+    # parser.add_argument('--device', help='Device used for inference', default='cuda:2')
+    
+
+    SAVE_DIR = '/home/ubuntu/minseok/mmdetection/results/dokyo_1'
+
+    DETECTORS_CONFIG='/aichallenge/detectors_htc_r50_1x_coco.py'
+    DETECTORS_CHECKPOINT='/aichallenge/epoch.pth'
+    SCORETHRESHOLD=0.5
+    
+    ELC_CHECKPOINT=None
+    USE_ATT=True
+    NCLASS=27
+    CSVPATH='/home/ubuntu/minseok/mmdetection/results/detectors_padding_2/t3_res_0026.csv'
+    ELC_ARGS = [ELC_CHECKPOINT, USE_ATT, NCLASS]
+
+    DEVICE='cuda:0'
+    
+    
 
     # load image list
     imgList = makeImgList(args.img_dir)
 
     # build DetectoRS
-    detectorsModel = init_detector(args.detectors_config, args.detectors_checkpoint, device=args.device)
+    detectorsModel = init_detector(DETECTORS_CONFIG, DETECTORS_CHECKPOINT, device=DEVICE)
     print('detectorsModel.CLASSES : ', detectorsModel.CLASSES)
-    detectorsPostProcessor = PostProcessor(detectorsModel.CLASSES)
+    detectorsPostProcessor = PostProcessor(detectorsModel.CLASSES, score_thr=SCORETHRESHOLD)
 
     # build ELC model
     elcModel = False
     elcPostProcessor = False
     elcConfigs = False
-    if args.elc_checkpoint:
-        elcModel, elcConfigs = elc.loadModel(args)
-        elcPostProcessor = elc.ElcResultParser(args.csvPath)
+    if ELC_CHECKPOINT:
+        elcModel, elcConfigs = elc.loadModel(ELC_ARGS)
+        elcPostProcessor = elc.ElcResultParser(CSVPATH)
 
-    inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, args)
+    inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR)
 
 
 if __name__ == '__main__':
