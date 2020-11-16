@@ -85,27 +85,29 @@ def makeImgPair(imgFileNames):
         img = _pillow2array(img, flag='color', channel_order='bgr')
         yield imgPath, img
 
-def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR):
-    f = open("cascade.csv", 'w')
-    f.write("file_name,c1,c2,c3,c4,c5,c6,c7 \n")
+def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR, SCORE_CHECKER):
+    if SCORE_CHECKER:
+        f = open("cascade.csv", 'w')
+        f.write("file_name,c1,c2,c3,c4,c5,c6,c7 \n")
 
-    for imgPath in imgList:
-    # for imgPath, img in tqdm(makeImgPair(imgList)):
-    
-        result = inference_detector(detectorsModel, imgPath)
+    # for imgPath in imgList:
+    for imgPath, img in tqdm(makeImgPair(imgList)):
+        result = inference_detector(detectorsModel, img)
         # use just detectors
         if not elcModel:
             # detectorsPostProcessor.saveResult(img, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
-            detectorsPostProcessor.saveIitp(imgPath, imgPath, result)
+            detectorsPostProcessor.saveIitp(img, imgPath, result)
 
-            _, labels = detectorsPostProcessor.cropBoxes(imgPath, result, out_file=None)
-            output_class = [0] * 7
-            f.write(imgPath.split("/")[-1])
-            for label in labels:
-                output_class[label] = 1
-            for i in output_class:
-                f.write("," + str(i))
-            f.write("," + "\n")
+            if SCORE_CHECKER:
+                # our score checker
+                _, labels = detectorsPostProcessor.cropBoxes(img, result, out_file=None)
+                output_class = [0] * 7
+                f.write(imgPath.split("/")[-1])
+                for label in labels:
+                    output_class[label] = 1
+                for i in output_class:
+                    f.write("," + str(i))
+                f.write("," + "\n")
 
         # if use ELC module
         else:
@@ -130,19 +132,22 @@ def main():
     args = parser.parse_args()
 
 
-    SAVE_DIR = '/msdet/testresults/'
 
     DETECTORS_CONFIG='./Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4_X3.py'
     DETECTORS_CHECKPOINT='./epoch_1.pth'
     SCORETHRESHOLD=0.5
-    
+
+    SCORE_CHECKER = False
+
+    DEVICE='cuda:0'
+
+    SAVE_DIR = '/msdet/testresults/'
     ELC_CHECKPOINT=None
     USE_ATT=True
     NCLASS=27
     CSVPATH='/home/ubuntu/minseok/mmdetection/results/detectors_padding_2/t3_res_0026.csv'
     ELC_ARGS = [ELC_CHECKPOINT, USE_ATT, NCLASS]
 
-    DEVICE='cuda:0'
     
 
     # load image list
@@ -161,7 +166,7 @@ def main():
         elcModel, elcConfigs = elc.loadModel(ELC_ARGS)
         elcPostProcessor = elc.ElcResultParser(CSVPATH)
 
-    inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR)
+    inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR, SCORE_CHECKER)
 
 if __name__ == '__main__':
     main()
