@@ -1,6 +1,8 @@
 from os import path, listdir
 from argparse import ArgumentParser
 import json
+from tqdm import tqdm
+import re
 
 from mmdet.apis import inference_detector, init_detector, show_result_pyplot
 
@@ -17,30 +19,93 @@ def makeImgList(dir):
 
     return imgFileNames
 
+def sorted_aphanumeric(data):
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(data, key=alphanum_key)
 
 def savePathFromImgPath(save_dir, imgPath):
     return path.join(save_dir, imgPath.split('/')[-1])
 
+def _pillow2array(img, flag='color', channel_order='bgr'):
+    """Convert a pillow image to numpy array.
+
+    Args:
+        img (:obj:`PIL.Image.Image`): The image loaded using PIL
+        flag (str): Flags specifying the color type of a loaded image,
+            candidates are 'color', 'grayscale' and 'unchanged'.
+            Default to 'color'.
+        channel_order (str): The channel order of the output image array,
+            candidates are 'bgr' and 'rgb'. Default to 'bgr'.
+
+    Returns:
+        np.ndarray: The converted numpy array
+    """
+    channel_order = channel_order.lower()
+    if channel_order not in ['rgb', 'bgr']:
+        raise ValueError('channel order must be either "rgb" or "bgr"')
+
+    if flag == 'unchanged':
+        array = np.array(img)
+        if array.ndim >= 3 and array.shape[2] >= 3:  # color image
+            array[:, :, :3] = array[:, :, (2, 1, 0)]  # RGB to BGR
+    else:
+        # If the image mode is not 'RGB', convert it to 'RGB' first.
+        if img.mode != 'RGB':
+            if img.mode != 'LA':
+                # Most formats except 'LA' can be directly converted to RGB
+                img = img.convert('RGB')
+            else:
+                # When the mode is 'LA', the default conversion will fill in
+                #  the canvas with black, which sometimes shadows black objects
+                #  in the foreground.
+                #
+                # Therefore, a random color (124, 117, 104) is used for canvas
+                img_rgba = img.convert('RGBA')
+                img = Image.new('RGB', img_rgba.size, (124, 117, 104))
+                img.paste(img_rgba, mask=img_rgba.split()[3])  # 3 is alpha
+        if flag == 'color':
+            array = np.array(img)
+            if channel_order != 'rgb':
+                array = array[:, :, ::-1]  # RGB to BGR
+        elif flag == 'grayscale':
+            img = img.convert('L')
+            array = np.array(img)
+        else:
+            raise ValueError(
+                'flag must be "color", "grayscale" or "unchanged", '
+                f'but got {flag}')
+    return array
+
 def makeImgPair(imgFileNames):
     for imgPath in imgFileNames:
         img = Image.open(imgPath)
-        print('type img : ', type(img))
         if img.width < img.height:
-            img = img.rotate(90)
-        img = np.array(img)
-        print('type img : ', type(img))
-        print()
+            img = img.transpose(Image.ROTATE_90)
+        img = _pillow2array(img, flag='color', channel_order='bgr')
         yield imgPath, img
 
 def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR):
-    # for imgPath in imgList:
-    for imgPath, img in makeImgPair(imgList):
+    f = open("cascade.csv", 'w')
+    f.write("file_name,c1,c2,c3,c4,c5,c6,c7 \n")
+
+    for imgPath in imgList:
+    # for imgPath, img in tqdm(makeImgPair(imgList)):
     
-        result = inference_detector(detectorsModel, img)
+        result = inference_detector(detectorsModel, imgPath)
         # use just detectors
         if not elcModel:
-            # detectorsPostProcessor.saveResult(imgPath, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
-            detectorsPostProcessor.saveIitp(imgPath, result)
+            # detectorsPostProcessor.saveResult(img, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
+            detectorsPostProcessor.saveIitp(imgPath, imgPath, result)
+
+            _, labels = detectorsPostProcessor.cropBoxes(imgPath, result, out_file=None)
+            output_class = [0] * 7
+            f.write(imgPath.split("/")[-1])
+            for label in labels:
+                output_class[label] = 1
+            for i in output_class:
+                f.write("," + str(i))
+            f.write("," + "\n")
 
         # if use ELC module
         else:
@@ -57,19 +122,18 @@ def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor
 
     with open('./t3_res_0022.json', 'w') as jsonFile:
         json.dump(detectorsPostProcessor.iitpJson, jsonFile)
-        
 
 def main():
     # DetectoRS options
     parser = ArgumentParser()
-    parser.add_argument('img_dir', help='Image files path') # , default='/home/ubuntu/minseok/dataset/AI_Challenge/workFestival_padding_2/val2017/'
+    parser.add_argument('img_dir', help='Image files path')
     args = parser.parse_args()
 
 
-    SAVE_DIR = '/home/ubuntu/minseok/mmdetection/results/dokyo_1'
+    SAVE_DIR = '/msdet/testresults/'
 
-    DETECTORS_CONFIG='/aichallenge/detectors_htc_r50_1x_coco.py'
-    DETECTORS_CHECKPOINT='/aichallenge/epoch.pth'
+    DETECTORS_CONFIG='./Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4_X3.py'
+    DETECTORS_CHECKPOINT='./epoch_1.pth'
     SCORETHRESHOLD=0.5
     
     ELC_CHECKPOINT=None
@@ -82,7 +146,7 @@ def main():
     
 
     # load image list
-    imgList = makeImgList(args.img_dir)
+    imgList = sorted_aphanumeric(makeImgList(args.img_dir))
 
     # build DetectoRS
     detectorsModel = init_detector(DETECTORS_CONFIG, DETECTORS_CHECKPOINT, device=DEVICE)
@@ -98,7 +162,6 @@ def main():
         elcPostProcessor = elc.ElcResultParser(CSVPATH)
 
     inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR)
-
 
 if __name__ == '__main__':
     main()

@@ -25,5 +25,5 @@ RUN pip install pillow
 RUN pip install opencv-python
 RUN pip install --no-cache-dir -e .
 
-COPY epoch_1.pth /aichallenge/epoch.pth
-COPY Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4_X3.py /aichallenge/
+COPY epoch_16.pth /aichallenge/epoch.pth
+COPY Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4_X3.py /aichallenge/detectors_htc_r50_1x_coco.py

@@ -58,8 +58,8 @@ class PostProcessor():
         # draw bounding boxes
         return self.imshow_det_bboxes(img, bboxes, labels, show=show, out_file=out_file)
 
-    def saveIitp(self, imgPath, result):
-        _, bboxes, labels = self.extractInfo(imgPath, result, show=False, out_file=None)
+    def saveIitp(self, img, imgPath, result):
+        _, bboxes, labels = self.extractInfo(img, result, show=False, out_file=None)
         bboxes, labels = self.iitpProcess(bboxes, labels)
         self.annoMaker(imgPath, bboxes, labels)
 
@@ -69,16 +69,15 @@ class PostProcessor():
             if i == 8:
                 if 3 in labels or 4 in labels:
                     i = 3
-
             if i == 9:
                 if 3 in labels:
-                    i = 3
+                    i = 3 
                 elif 4 in labels:
-                    i = 0
+                    i = 0 
             i = self.box_real_class[i]
             appliedLabels.append(i)
 
-        return labels
+        return appliedLabels
 
     def annoMaker(self, imgPath, bboxes, labels):
         anno = {}
@@ -117,15 +116,66 @@ class PostProcessor():
 
         return processedBoxes, labels
 
+    def bb_intersection_over_union(self, bboxes, labels, box_scores):
+        # determine the (x, y)-coordinates of the intersection rectangle
+        best_indexes = []
+
+        for i in range(0, len(bboxes) - 1):
+
+            best_iou = -1
+            best_list = []
+
+            for j in range(i + 1 , len(bboxes)):
+                xA = max(bboxes[i][0], bboxes[j][0])
+                yA = max(bboxes[i][1], bboxes[j][1])
+                xB = min(bboxes[i][2], bboxes[j][2])
+                yB = min(bboxes[i][3], bboxes[j][3])
+                # compute the area of intersection rectangle
+                interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+                # compute the area of both the prediction and ground-truth
+                # rectangles
+                boxAArea = (bboxes[i][2] - bboxes[i][0] + 1) * (bboxes[i][3] - bboxes[i][1] + 1)
+                boxBArea = (bboxes[j][2] - bboxes[j][0] + 1) * (bboxes[j][3] - bboxes[j][1] + 1)
+                # compute the intersection over union by taking the intersection
+                # area and dividing it by the sum of prediction + ground-truth
+                # areas - the interesection area
+                iou = interArea / float(boxAArea + boxBArea - interArea)
+                if iou > best_iou:
+                    best_iou = iou
+                    best_list = [i , j, best_iou]
+
+                    best_indexes.append(best_list)
+
+        index = []
+        for best_index in best_indexes:
+            if best_index[2] > 0.98: # best_iou
+                if box_scores[best_index[0]] > box_scores[best_index[1]]:
+                    index.append(best_index[1])
+
+                else :
+                    index.append(best_index[0])
+
+        index = set(index)
+        index = sorted(list(index), reverse=True)
+
+        for i in index :
+            if box_scores[i] < 0.35:
+                bboxes = np.delete(bboxes, i, axis = 0)
+                labels = np.delete(labels, i, axis = 0)
+                box_scores = np.delete(box_scores, i, axis = 0)
+
+
+        # return the intersection over union value
+        return bboxes, labels, box_scores
 
     def cropBoxes(self, img, result, out_file=None):
         img, bboxes, labels = self.extractInfo(img, result, show=False, out_file=out_file)
-
         assert bboxes.ndim == 2
         assert labels.ndim == 1
         assert bboxes.shape[0] == labels.shape[0]
         assert bboxes.shape[1] == 4 or bboxes.shape[1] == 5
         img = imread(img)
+        box_scores = []
 
         if self.score_thr > 0:
             assert bboxes.shape[1] == 5
@@ -133,9 +183,14 @@ class PostProcessor():
             inds = scores > self.score_thr
             bboxes = bboxes[inds, :]
             labels = labels[inds]
+            box_scores = scores[inds]
 
         img = np.ascontiguousarray(img)
         croppedImgs = []
+        out_label = []
+
+        if len(labels) > 1:
+            bboxes, labels, box_scores = self.bb_intersection_over_union(bboxes, labels, box_scores)
 
         # path to save cropped image if save
         # splitPath = out_file.split('/')
@@ -151,8 +206,19 @@ class PostProcessor():
                 widthRange = (bbox_int[0], bbox_int[2])
 
                 dst = img.copy()
-                dst = dst[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]]
+
+                center_x = int(int(bbox_int[0]) - int(bbox_int[0])*0.15)
+                center_y = int(int(bbox_int[1]) - int(bbox_int[0])*0.15)
+                width = int(int(bbox_int[2]) + int(bbox_int[2])*0.15)
+                height = int(int(bbox_int[3]) + int(bbox_int[3])*0.15)
+
+                dst = dst[center_y:height, center_x:width]
+
+                # dst = dst[bbox_int[1]:bbox_int[3], bbox_int[0]:bbox_int[2]]
+
                 croppedImgs.append(dst)
+
+            out_label.append(label)
 
             # save cropped image            
             # out_file = splitPath.copy()
@@ -160,8 +226,10 @@ class PostProcessor():
             # out_file = '/'.join(out_file)
             # if out_file is not None:
             #     imwrite(dst, out_file)
+        
+        out_label = self.labelChanger(out_label)
 
-        return croppedImgs
+        return croppedImgs, out_label
 
     def extractInfo(self,
                     img,
@@ -207,7 +275,6 @@ class PostProcessor():
         #     return img
 
         return img, bboxes, labels
-
 
     def imshow_det_bboxes(self,
                         img,
