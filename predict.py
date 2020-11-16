@@ -7,6 +7,7 @@ from mmdet.apis import inference_detector, init_detector, show_result_pyplot
 # from ELC import inference as elc
 from hamsters_utils import PostProcessor
 from PIL import Image
+import numpy as np
 
 
 def makeImgList(dir):
@@ -20,10 +21,22 @@ def makeImgList(dir):
 def savePathFromImgPath(save_dir, imgPath):
     return path.join(save_dir, imgPath.split('/')[-1])
 
+def makeImgPair(imgFileNames):
+    for imgPath in imgFileNames:
+        img = Image.open(imgPath)
+        print('type img : ', type(img))
+        if img.width < img.height:
+            img = img.rotate(90)
+        img = np.array(img)
+        print('type img : ', type(img))
+        print()
+        yield imgPath, img
 
 def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR):
-    for imgPath in imgList:
-        result = inference_detector(detectorsModel, imgPath)
+    # for imgPath in imgList:
+    for imgPath, img in makeImgPair(imgList):
+    
+        result = inference_detector(detectorsModel, img)
         # use just detectors
         if not elcModel:
             # detectorsPostProcessor.saveResult(imgPath, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
