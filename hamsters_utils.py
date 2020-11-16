@@ -38,7 +38,7 @@ class PostProcessor():
         self.makeColors()
         self.iitpID = 0
         self.iitpJson = {'annotations':[]}
-        self.box_real_class = [1,3,0,6,6,5,5,1,2,4]
+        self.box_real_class = [0, 1, 1, 2, 3, 4, 5, 6, 5, 6]
 
     def makeColors(self):
         if len(self.colors) >= self.num_classes:
@@ -63,24 +63,36 @@ class PostProcessor():
         bboxes, labels = self.iitpProcess(bboxes, labels)
         self.annoMaker(imgPath, bboxes, labels)
 
+    def labelChanger(self, labels):
+        appliedLabels = []
+        for i in labels:
+            if i == 8:
+                if 3 in labels or 4 in labels:
+                    i = 3
+
+            if i == 9:
+                if 3 in labels:
+                    i = 3
+                elif 4 in labels:
+                    i = 0
+            i = self.box_real_class[i]
+            appliedLabels.append(i)
+
+        return labels
+
     def annoMaker(self, imgPath, bboxes, labels):
         anno = {}
         anno['id'] = self.iitpID
         self.iitpID+=1
-        
+        labels = self.labelChanger(labels)
         fileName = imgPath.split('/')[-1]
         anno['file_name'] = fileName
-
         anno['object'] = []
         for box, label in zip(bboxes, labels):
-            label = self.box_real_class[label]
-            anno['object'].append(
-                {
+            anno['object'].append({
                 'box': box,
                 'label': 'c'+str(label)
-                }
-                )
-
+                })
         self.iitpJson['annotations'].append(anno)
 
     def iitpProcess(self, bboxes, labels):
