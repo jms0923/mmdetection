@@ -4,12 +4,19 @@ import json
 from tqdm import tqdm
 import re
 
+from torchvision.transforms.functional import center_crop
 from mmdet.apis import inference_detector, init_detector, show_result_pyplot
 
 # from ELC import inference as elc
 from hamsters_utils import PostProcessor
 from PIL import Image
 import numpy as np
+
+
+PLASTIC_NUM = 6
+STANDARD_HEIGHT = 720
+STANDARD_WIDTH = 1280
+CENTER_CROP_RATIO = 0.8
 
 
 def makeImgList(dir):
@@ -77,26 +84,49 @@ def _pillow2array(img, flag='color', channel_order='bgr'):
                 f'but got {flag}')
     return array
 
-def makeImgPair(imgFileNames):
+def imgPairSingle(imgPath, centerCrop=False):
+    img = Image.open(imgPath)
+    if img.width < img.height:
+        img = img.transpose(Image.ROTATE_90)
+    if centerCrop or (img.width > STANDARD_WIDTH and img.height > STANDARD_HEIGHT):
+        cropHeight = int(img.height * CENTER_CROP_RATIO)
+        cropWidth = int(img.width * CENTER_CROP_RATIO)
+        img = center_crop(img, (cropHeight, cropWidth))
+    img = _pillow2array(img, flag='color', channel_order='bgr')
+    
+    return  imgPath, img
+
+def imgPairList(imgFileNames):
     for imgPath in imgFileNames:
-        img = Image.open(imgPath)
-        if img.width < img.height:
-            img = img.transpose(Image.ROTATE_90)
-        img = _pillow2array(img, flag='color', channel_order='bgr')
-        yield imgPath, img
+        yield imgPairSingle(imgPath)
 
 def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor, elcConfigs, imgList, SAVE_DIR, SCORE_CHECKER):
     if SCORE_CHECKER:
         f = open("cascade.csv", 'w')
         f.write("file_name,c1,c2,c3,c4,c5,c6,c7 \n")
 
-    # for imgPath in imgList:
-    for imgPath, img in tqdm(makeImgPair(imgList)):
+    labelSum = [0] * 8
+    nonResultImgPath = []
+    for imgPath, img in tqdm(imgPairList(imgList)):
         result = inference_detector(detectorsModel, img)
-        # use just detectors
         if not elcModel:
             # detectorsPostProcessor.saveResult(img, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
-            detectorsPostProcessor.saveIitp(img, imgPath, result)
+            nowLabels = detectorsPostProcessor.saveIitp(img, imgPath, result)
+            if isinstance(nowLabels, list):
+                # case : true => labels list
+                for label in nowLabels:
+                    labelSum[label] += 1
+            else:
+                # case : false
+                imgPath, img = imgPairSingle(imgPath, centerCrop=True)
+                result = inference_detector(detectorsModel, img)
+                nowLabels = detectorsPostProcessor.saveIitp(img, imgPath, result)
+                if isinstance(nowLabels, list):
+                    # case : true => labels list
+                    for label in nowLabels:
+                        labelSum[label] += 1
+                else:
+                    nonResultImgPath.append(imgPath)
 
             if SCORE_CHECKER:
                 # our score checker
@@ -109,18 +139,9 @@ def inference(detectorsModel, detectorsPostProcessor, elcModel, elcPostProcessor
                     f.write("," + str(i))
                 f.write("," + "\n")
 
-        # if use ELC module
-        else:
-            detectorsPostProcessor.saveResult(imgPath, result, show=False, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
-            croppedImgs = detectorsPostProcessor.cropBoxes(imgPath, result, out_file=savePathFromImgPath(SAVE_DIR, imgPath))
-            if len(croppedImgs) > 0:
-                for idx, img in enumerate(croppedImgs):
-                    pred_class, confidence = elc.inference(elcModel, elcConfigs, Image.fromarray(img))
-                    elcPostProcessor(pred_class, confidence, imgPath.split('/')[-1])
-            else:
-                elcPostProcessor.iitp_csv[imgPath.split('/')[-1]] = [imgPath.split('/')[-1], 0, 0, 0, 0, 0, 0, 0]
-    if elcModel:
-        elcPostProcessor.saveCsv()
+    for imgPath in nonResultImgPath:
+        # minLabel = labelSum.index(min(labelSum[1:]))
+        detectorsPostProcessor.annoMaker(imgPath, [[100,200,300,400]], [PLASTIC_NUM], labelChanger=False)
 
     with open('./t3_res_0022.json', 'w') as jsonFile:
         json.dump(detectorsPostProcessor.iitpJson, jsonFile)
@@ -132,8 +153,12 @@ def main():
     args = parser.parse_args()
 
 
-    DETECTORS_CONFIG='./config.py'
-    DETECTORS_CHECKPOINT='./epoch.pth'
+    # DETECTORS_CONFIG='./config.py'
+    # DETECTORS_CHECKPOINT='./epoch.pth'
+    DETECTORS_CONFIG='./docker/Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4.py'
+    DETECTORS_CHECKPOINT='./docker/epoch_18.pth'
+
+
     SCORETHRESHOLD=0.5
 
     SCORE_CHECKER = False
@@ -146,7 +171,6 @@ def main():
     NCLASS=27
     CSVPATH='/home/ubuntu/minseok/mmdetection/results/detectors_padding_2/t3_res_0026.csv'
     ELC_ARGS = [ELC_CHECKPOINT, USE_ATT, NCLASS]
-    
 
     # load image list
     imgList = sorted_aphanumeric(makeImgList(args.img_dir))

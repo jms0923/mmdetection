@@ -58,11 +58,6 @@ class PostProcessor():
         # draw bounding boxes
         return self.imshow_det_bboxes(img, bboxes, labels, show=show, out_file=out_file)
 
-    def saveIitp(self, img, imgPath, result):
-        _, bboxes, labels = self.extractInfo(img, result, show=False, out_file=None)
-        bboxes, labels = self.iitpProcess(bboxes, labels)
-        self.annoMaker(imgPath, bboxes, labels)
-
     def labelChanger(self, labels):
         appliedLabels = []
         for i in labels:
@@ -75,15 +70,24 @@ class PostProcessor():
                 elif 4 in labels:
                     i = 0 
             i = self.box_real_class[i]
+            i += 1
             appliedLabels.append(i)
 
         return appliedLabels
 
-    def annoMaker(self, imgPath, bboxes, labels):
+    def saveIitp(self, img, imgPath, result):
+        _, bboxes, labels = self.extractInfo(img, result, show=False, out_file=None)
+        bboxes, labels = self.iitpProcess(bboxes, labels)
+        if len(labels) < 1:
+            return False
+        return self.annoMaker(imgPath, bboxes, labels)
+
+    def annoMaker(self, imgPath, bboxes, labels, labelChanger=True):
         anno = {}
         anno['id'] = self.iitpID
-        self.iitpID+=1
-        labels = self.labelChanger(labels)
+        self.iitpID += 1
+        if labelChanger:
+            labels = self.labelChanger(labels)
         fileName = imgPath.split('/')[-1]
         anno['file_name'] = fileName
         anno['object'] = []
@@ -93,6 +97,8 @@ class PostProcessor():
                 'label': 'c'+str(label)
                 })
         self.iitpJson['annotations'].append(anno)
+
+        return labels
 
     def iitpProcess(self, bboxes, labels):
         assert bboxes.ndim == 2
