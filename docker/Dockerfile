@@ -26,4 +26,4 @@ RUN pip install opencv-python
 RUN pip install --no-cache-dir -e .
 
 COPY epoch_18.pth /aichallenge/epoch.pth
-COPY Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4_X3.py /aichallenge/config.py
+COPY Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4.py /aichallenge/config.py

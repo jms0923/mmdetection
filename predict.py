@@ -132,7 +132,7 @@ def main():
     args = parser.parse_args()
 
 
-    DETECTORS_CONFIG='./Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4_X3.py'
+    DETECTORS_CONFIG='./config.py'
     DETECTORS_CHECKPOINT='./epoch.pth'
     SCORETHRESHOLD=0.5
 
