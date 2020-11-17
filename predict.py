@@ -153,10 +153,10 @@ def main():
     args = parser.parse_args()
 
 
-    # DETECTORS_CONFIG='./config.py'
-    # DETECTORS_CHECKPOINT='./epoch.pth'
-    DETECTORS_CONFIG='./docker/Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4.py'
-    DETECTORS_CHECKPOINT='./docker/epoch_18.pth'
+    DETECTORS_CONFIG='./config.py'
+    DETECTORS_CHECKPOINT='./epoch.pth'
+    # DETECTORS_CONFIG='./docker/Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4.py'
+    # DETECTORS_CHECKPOINT='./docker/epoch_18.pth'
 
 
     SCORETHRESHOLD=0.5
