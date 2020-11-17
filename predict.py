@@ -132,9 +132,8 @@ def main():
     args = parser.parse_args()
 
 
-
     DETECTORS_CONFIG='./Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4_X3.py'
-    DETECTORS_CHECKPOINT='./epoch_1.pth'
+    DETECTORS_CHECKPOINT='./epoch.pth'
     SCORETHRESHOLD=0.5
 
     SCORE_CHECKER = False
@@ -147,7 +146,6 @@ def main():
     NCLASS=27
     CSVPATH='/home/ubuntu/minseok/mmdetection/results/detectors_padding_2/t3_res_0026.csv'
     ELC_ARGS = [ELC_CHECKPOINT, USE_ATT, NCLASS]
-
     
 
     # load image list
