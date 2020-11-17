@@ -36,7 +36,7 @@ class PostProcessor():
                         (255, 0, 255), (255, 255, 255), (0, 0, 0), (255, 0, 128), (0, 191, 255),
                         (10, 255, 128), (191, 255, 0), (255, 191, 0), (255, 128, 10), (50, 152, 89)]
         self.makeColors()
-        self.iitpID = 0
+        self.iitpID = 1
         self.iitpJson = {'annotations':[]}
         self.box_real_class = [0, 1, 1, 2, 3, 4, 5, 6, 5, 6]
 

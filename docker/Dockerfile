@@ -17,13 +17,13 @@ RUN pip install mmcv-full==latest+torch1.5.0+cu101 -f https://openmmlab.oss-acce
 
 # Install MMDetection
 RUN conda clean --all
-RUN git clone https://github.com/jms0923/mmdetection.git /aichallenge
-WORKDIR /aichallenge
+RUN git clone https://github.com/jms0923/mmdetection.git /root/aichallenge
+WORKDIR /root/aichallenge
 ENV FORCE_CUDA="1"
 RUN pip install -r requirements/build.txt
 RUN pip install pillow
 RUN pip install opencv-python
 RUN pip install --no-cache-dir -e .
 
-COPY epoch_18.pth /aichallenge/epoch.pth
-COPY Chellange_detectors_cascade_rcnn_r50_1x_coco_WorkFestival_4.py /aichallenge/config.py
+COPY epoch_16.pth /root/aichallenge/epoch.pth
+COPY 20201117_Chellange_detectors_cascade_rcnn_r50_1x_coco_WF4_val_MST.py /root/aichallenge/config.py
