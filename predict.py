@@ -13,7 +13,7 @@ from PIL import Image
 import numpy as np
 
 
-PLASTIC_NUM = 7
+PLASTIC_NUM = 3
 STANDARD_HEIGHT = 720
 STANDARD_WIDTH = 1280
 CENTER_CROP_RATIO = 0.8
